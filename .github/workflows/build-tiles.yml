@@ -15,19 +15,6 @@ on:
           - 'ALL_REGIONS'
           # Test Region
           - 'europe/germany/niedersachsen'
-          # Selection of individual countries for manual quick-builds
-          - 'europe/germany'
-          - 'europe/france'
-          - 'europe/united-kingdom'
-          - 'europe/italy'
-          - 'europe/spain'
-          - 'north-america/us'
-          - 'north-america/canada'
-          - 'africa'
-          - 'asia'
-          - 'australia-oceania'
-          - 'south-america'
-          - 'central-america'
 
 permissions:
   contents: write
