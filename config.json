@@ -11,10 +11,8 @@
     "basezoom": 14,
     "include_ids": false,
     "compress": "gzip",
-    "metadata": {
-      "name": "Journey Itinerary Tiles",
-      "description": "Vector tiles locked at zoom level 14. Frontend handles overzooming.",
-      "version": "1.1.0"
-    }
+    "name": "Journey Tiles",
+    "version": "1.1.0",
+    "description": "Vector tiles locked at zoom level 14. Frontend handles overzooming."
   }
 }
