@@ -69,7 +69,7 @@ function node_function(node)
     if name ~= "Unknown" then
         node:Layer("journey", false)
         node:Attribute("station_name", name)
-        node:Attribute("order", order)
+        node:AttributeNumeric("order", order)
     end
 end
 
@@ -80,6 +80,6 @@ function way_function(way)
     if name ~= "Unknown" then
         way:Layer("journey", way:IsClosed())
         way:Attribute("station_name", name)
-        way:Attribute("order", order)
+        way:AttributeNumeric("order", order)
     end
 end
