@@ -1,14 +1,14 @@
 {
   "layers": {
     "journey": {
-      "minzoom": 14,
-      "maxzoom": 14
+      "minzoom": 10,
+      "maxzoom": 10
     }
   },
   "settings": {
-    "minzoom": 14,
-    "maxzoom": 14,
-    "basezoom": 14,
+    "minzoom": 10,
+    "maxzoom": 10,
+    "basezoom": 10,
     "include_ids": false,
     "compress": "gzip",
     "name": "Journey Tiles",
