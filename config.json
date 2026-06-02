@@ -10,6 +10,7 @@
     "maxzoom": 14,
     "basezoom": 14,
     "include_ids": false,
+    "compress": "gzip",
     "name": "Journey Tiles",
     "version": "1.1.0",
     "description": "Vector tiles locked at zoom level 14. Frontend handles overzooming."
