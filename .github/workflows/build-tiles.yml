@@ -51,7 +51,7 @@ jobs:
       - name: Generate PMTiles (Zoom 14 Only)
         run: |
           tilemaker --input region.osm.pbf \
-                    --output ${{ env.filename }}.pmtiles \
+                    --output ${{ env.filename }} \
                     --config config.json \
                     --process process.lua \
                     --store /tmp/tilemaker_store
@@ -60,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pmtiles-${{ env.filename }}
-          path: ${{ env.filename }}.pmtiles
+          path: ${{ env.filename }}
           retention-days: 1
 
   deploy-tiles:
@@ -82,4 +82,4 @@ jobs:
           folder: deploy_tiles
           target-folder: tiles
           branch: gh-pages
-          clean: false # Set to false so manual single-country builds do not delete the other global countries
+          clean: ${{ github.event_name == 'schedule' || github.event.inputs.region == 'ALL_REGIONS' }}

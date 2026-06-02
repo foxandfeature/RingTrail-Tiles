@@ -51,10 +51,9 @@ end
 function way_function(way)
     local order = determineStationOrder(way)
     if order then
-        -- Tilemaker built-in: Converts the way geometry into a single point at its center (centroid)
-        way:Centroid()
+        -- Converts the way geometry into a single point at its center (centroid)
+        way:LayerAsCentroid("journey")
         
-        way:Layer("journey", false)
         way:Attribute("order", order)
     end
 end
