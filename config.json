@@ -13,6 +13,6 @@
     "compress": "gzip",
     "name": "Journey Tiles",
     "version": "1.1.0",
-    "description": "Vector tiles locked at zoom level 14. Frontend handles overzooming."
+    "description": ""
   }
 }

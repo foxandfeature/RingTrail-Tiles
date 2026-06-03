@@ -48,7 +48,7 @@ jobs:
           CLEAN_NAME=$(echo "${{ matrix.region }}" | tr '/' '-')
           echo "filename=$CLEAN_NAME" >> $GITHUB_ENV
 
-      - name: Generate PMTiles (Zoom 14 Only)
+      - name: Generate PMTiles
         run: |
           tilemaker --input region.osm.pbf \
                     --output ${{ env.filename }} \

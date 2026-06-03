@@ -1,6 +1,6 @@
 -- Key definitions for Tilemaker indexing
-node_keys = { "landuse", "building", "bridge", "foot", "highway", "tourism", "amenity", "shelter_type" }
-way_keys =  { "landuse", "building", "bridge", "foot", "highway", "tourism", "amenity", "shelter_type" }
+node_keys = { "building", "bridge", "foot", "highway", "tourism", "amenity", "shelter_type" }
+way_keys =  { "building", "bridge", "foot", "highway", "tourism", "amenity", "shelter_type" }
 
 -- Match tables for fast lookups (optimizes performance by replacing long 'or' chains)
 local farm_buildings = { farm = true, barn = true, stable = true, sty = true, cowshed = true }
@@ -14,9 +14,6 @@ function exit_function() end
 -- Central logic to determine station order based on OSM tags
 local function determineStationOrder(obj)
     -- Maggot Hof
-    local landuse = obj:Find("landuse")
-    if landuse == "farmyard" then return "1" end
-
     local building = obj:Find("building")
     if farm_buildings[building] then return "1" end
 
