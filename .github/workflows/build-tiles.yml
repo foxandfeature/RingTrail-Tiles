@@ -2,7 +2,7 @@ name: Build Custom Map Tiles
 
 on:
   schedule:
-    - cron: '0 0 1 * *' # Automatically runs on the 1st of every month at 00:00 UTC (Runs ALL regions)
+    - cron: '0 0 1 * *'
   workflow_dispatch:
     inputs:
       region:
@@ -11,24 +11,42 @@ on:
         default: 'europe/germany/niedersachsen'
         type: choice
         options:
-          # Special option to trigger the whole world manually
           - 'ALL_REGIONS'
-          # Test Region
           - 'europe/germany/niedersachsen'
 
 permissions:
   contents: write
 
 jobs:
-  build-tiles:
+  prepare:
     runs-on: ubuntu-latest
+
+    outputs:
+      regions: ${{ steps.regions.outputs.regions }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Load Region List
+        id: regions
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event.inputs.region }}" = "ALL_REGIONS" ]; then
+            echo "regions=$(jq -c . .github/regions.json)" >> "$GITHUB_OUTPUT"
+          else
+            echo "regions=[\"${{ github.event.inputs.region }}\"]" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-tiles:
+    needs: prepare
+    runs-on: ubuntu-latest
+
     strategy:
-      fail-fast: false # Ensure other regions keep compiling if one regional extract fails
+      fail-fast: false
+      max-parallel: 8
       matrix:
-        # If the trigger is the monthly cronjob OR the user manually selected 'ALL_REGIONS', load the full global array.
-        # Otherwise (if a specific country was selected), just put that single country into the matrix.
-        region: ${{ (github.event_name == 'schedule' || github.event.inputs.region == 'ALL_REGIONS') && fromJSON('["africa","antarctica","asia","australia-oceania","central-america","south-america","north-america/us","north-america/canada","north-america/greenland","north-america/mexico","europe/albania","europe/andorra","europe/austria","europe/azores","europe/belarus","europe/belgium","europe/bosnia-herzegovina","europe/bulgaria","europe/croatia","europe/cyprus","europe/czech-republic","europe/denmark","europe/estonia","europe/faroe-islands","europe/finland","europe/france","europe/georgia","europe/germany","europe/greece","europe/guernsey-and-jersey","europe/hungary","europe/iceland","europe/ireland-and-northern-ireland","europe/isle-of-man","europe/italy","europe/kosovo","europe/latvia","europe/liechtenstein","europe/lithuania","europe/luxembourg","europe/macedonia","europe/malta","europe/moldova","europe/monaco","europe/montenegro","europe/netherlands","europe/norway","europe/poland","europe/portugal","europe/romania","europe/russian-federation","europe/serbia","europe/slovakia","europe/slovenia","europe/spain","europe/sweden","europe/switzerland","europe/turkey","europe/ukraine","europe/united-kingdom"]') || fromJSON(format('["{0}"]', github.event.inputs.region)) }}
-    
+        region: ${{ fromJSON(needs.prepare.outputs.regions) }}
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -39,22 +57,23 @@ jobs:
           sudo apt-get install -y tilemaker
 
       - name: Download Geofabrik Extract
-        run: wget https://download.geofabrik.de/${{ matrix.region }}-latest.osm.pbf -O region.osm.pbf
+        run: |
+          wget "https://download.geofabrik.de/${{ matrix.region }}-latest.osm.pbf" \
+            -O region.osm.pbf
 
       - name: Format Destination Filename
-        id: format
         run: |
-          # Replaces slashes with dashes (e.g., europe/germany/niedersachsen becomes europe-germany-niedersachsen)
           CLEAN_NAME=$(echo "${{ matrix.region }}" | tr '/' '-')
-          echo "filename=$CLEAN_NAME" >> $GITHUB_ENV
+          echo "filename=$CLEAN_NAME" >> "$GITHUB_ENV"
 
       - name: Generate PMTiles
         run: |
-          tilemaker --input region.osm.pbf \
-                    --output ${{ env.filename }} \
-                    --config config.json \
-                    --process process.lua \
-                    --store /tmp/tilemaker_store
+          tilemaker \
+            --input region.osm.pbf \
+            --output "${{ env.filename }}" \
+            --config config.json \
+            --process process.lua \
+            --store /tmp/tilemaker_store
 
       - name: Upload Temporary Regional Artifact
         uses: actions/upload-artifact@v4
@@ -66,6 +85,7 @@ jobs:
   deploy-tiles:
     needs: build-tiles
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -74,7 +94,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: deploy_tiles
-          merge-multiple: true # Aggregates all matrix files into a single flat directory
+          merge-multiple: true
 
       - name: Deploy and Commit Consolidated Tiles to GitHub Pages Branch
         uses: JamesIves/github-pages-deploy-action@v4
