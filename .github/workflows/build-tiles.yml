@@ -67,6 +67,7 @@ jobs:
           echo "filename=$CLEAN_NAME" >> "$GITHUB_ENV"
 
       - name: Generate PMTiles
+        continue-on-error: true
         run: |
           tilemaker \
             --input region.osm.pbf \
@@ -76,6 +77,7 @@ jobs:
             --store /tmp/tilemaker_store
 
       - name: Upload Temporary Regional Artifact
+        if: ${{ hashFiles(env.filename) != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: pmtiles-${{ env.filename }}
@@ -83,6 +85,7 @@ jobs:
           retention-days: 1
 
   deploy-tiles:
+    if: ${{ always() }}
     needs: build-tiles
     runs-on: ubuntu-latest
 
@@ -93,6 +96,7 @@ jobs:
       - name: Download All Generated PMTiles
         uses: actions/download-artifact@v4
         with:
+          pattern: pmtiles-*
           path: deploy_tiles
           merge-multiple: true
 
