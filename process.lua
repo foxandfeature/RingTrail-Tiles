@@ -12,47 +12,46 @@ function init_function() end
 function exit_function() end
 
 -- Central logic to determine station order based on OSM tags
-local function determineStationOrder(obj)
+local function determineStationOrder()
     -- Maggot Hof
-    local building = obj:Find("building")
+    local building = Find("building")
     if farm_buildings[building] then return "1" end
 
     -- Brandywine Ferry
-    local bridge = obj:Find("bridge")
+    local bridge = Find("bridge")
     if bridge and bridge ~= "" and bridge ~= "no" then
-        if ferry_feet[obj:Find("foot")] or ferry_highways[obj:Find("highway")] then
+        if ferry_feet[Find("foot")] or ferry_highways[Find("highway")] then
             return "2"
         end
     end
 
-    -- Tom Bombadil House"
-    if huts[obj:Find("tourism")] then return "3" end
+    -- Tom Bombadil House
+    if huts[Find("tourism")] then return "3" end
 
-    if obj:Find("amenity") == "shelter" and obj:Find("shelter_type") ~= "public_transport" then
+    if Find("amenity") == "shelter" and Find("shelter_type") ~= "public_transport" then
         return "3"
     end
 
     return nil
 end
 
--- Process node elements (points)
-function node_function(node)
-    local order = determineStationOrder(node)
+-- Process node elements (points) - No arguments in new API
+function node_function()
+    local order = determineStationOrder()
     if order then
-        node:Layer("journey", false)
-        node:Attribute("order", order)
+        Layer("journey", false)
+        Attribute("order", order)
     end
 end
 
--- Process way elements (lines/polygons)
-function way_function(way)
-    local order = determineStationOrder(way)
+-- Process way elements (lines/polygons) - No arguments in new API
+function way_function()
+    local order = determineStationOrder()
     if order then
         -- Converts the way geometry into a single point at its center (centroid)
-        way:LayerAsCentroid("journey")
-        
-        way:Attribute("order", order)
+        LayerAsCentroid("journey")
+        Attribute("order", order)
     end
 end
 
-function relation_function(relation) end
+function relation_function() end

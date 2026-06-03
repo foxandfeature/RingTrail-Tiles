@@ -20,10 +20,8 @@ permissions:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-
     outputs:
       regions: ${{ steps.regions.outputs.regions }}
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -40,7 +38,6 @@ jobs:
   build-tiles:
     needs: prepare
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       max-parallel: 8
@@ -51,11 +48,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Tilemaker
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y tilemaker
-
       - name: Download Geofabrik Extract
         run: |
           wget "https://download.geofabrik.de/${{ matrix.region }}-latest.osm.pbf" \
@@ -64,23 +56,25 @@ jobs:
       - name: Format Destination Filename
         run: |
           CLEAN_NAME=$(echo "${{ matrix.region }}" | tr '/' '-')
-          echo "filename=$CLEAN_NAME" >> "$GITHUB_ENV"
+          echo "filename=$CLEAN_NAME.mbtiles" >> "$GITHUB_ENV"
 
-      - name: Generate PMTiles
+      - name: Generate MBTiles via Tilemaker Docker
         continue-on-error: true
         run: |
-          tilemaker \
-            --input region.osm.pbf \
-            --output "${{ env.filename }}" \
-            --config config.json \
-            --process process.lua \
+          docker run --rm \
+            -v $(pwd):/data \
+            ghcr.io/systemed/tilemaker:master \
+            --input /data/region.osm.pbf \
+            --output "/data/${{ env.filename }}" \
+            --config /data/config.json \
+            --process /data/process.lua \
             --store /tmp/tilemaker_store
 
       - name: Upload Temporary Regional Artifact
         if: ${{ hashFiles(env.filename) != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: pmtiles-${{ env.filename }}
+          name: mbtiles-${{ env.filename }}
           path: ${{ env.filename }}
           retention-days: 1
 
@@ -93,17 +87,38 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Download All Generated PMTiles
+      - name: Setup Workspace
+        run: |
+          mkdir -p download_mbtiles
+          mkdir -p final_tiles_extracted
+
+      - name: Download All Generated MBTiles
         uses: actions/download-artifact@v4
         with:
-          pattern: pmtiles-*
-          path: deploy_tiles
+          pattern: mbtiles-*
+          path: download_mbtiles
           merge-multiple: true
+
+      - name: Install Tippecanoe (tile-join)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libsqlite3-dev zlib1g-dev
+          git clone https://github.com/felt/tippecanoe.git
+          cd tippecanoe
+          make -j$(nproc)
+          sudo make install
+
+      - name: Merge and Extract Tiles
+        run: |
+          tile-join \
+            --no-tile-size-limit \
+            -e final_tiles_extracted \
+            download_mbtiles/*.mbtiles
 
       - name: Deploy and Commit Consolidated Tiles to GitHub Pages Branch
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: deploy_tiles
+          folder: final_tiles_extracted
           target-folder: tiles
           branch: gh-pages
           clean: ${{ github.event_name == 'schedule' || github.event.inputs.region == 'ALL_REGIONS' }}
