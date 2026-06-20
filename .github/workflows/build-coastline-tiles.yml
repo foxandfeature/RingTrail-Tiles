@@ -58,4 +58,6 @@ jobs:
           folder: final_tiles
           target-folder: tiles/coastline  # Lädt die Daten isoliert in 'tiles/coastline' hoch
           branch: gh-pages
-          clean: true # Löscht alte Coastline-Kacheln, berührt deinen 'journey'-Ordner aber NICHT
+          clean: true
+          commit-message: "Deploy Coastline Tiles 🚀"
+          single-commit: false # Erzeugt eine saubere Historie, statt den Branch zu plätten

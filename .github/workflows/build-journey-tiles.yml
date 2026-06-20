@@ -122,3 +122,5 @@ jobs:
           target-folder: tiles/journey
           branch: gh-pages
           clean: ${{ github.event_name == 'schedule' || github.event.inputs.region == 'ALL_REGIONS' }}
+          commit-message: "Deploy Journey Tiles 🚀"
+          single-commit: false
