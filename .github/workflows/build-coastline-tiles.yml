@@ -1,0 +1,54 @@
+name: Build Global Coastline Tiles
+
+on:
+  schedule:
+    - cron: '0 0 2 * *' # Läuft vollautomatisch am 2. jedes Monats
+  workflow_dispatch: # Ermöglicht den manuellen Start über den "Run workflow" Button
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Tippecanoe Dependecies & Build Tippecanoe
+        run: |
+          sudo apt-get update
+          # Installiert die für Tippecanoe benötigten Compiler und Bibliotheken
+          sudo apt-get install -y build-essential libsqlite3-dev zlib1g-dev
+          git clone https://github.com/felt/tippecanoe.git
+          cd tippecanoe
+          make -j$(nproc)
+          sudo make install
+
+      - name: Download and Unzip Coastlines Shapefile
+        run: |
+          mkdir -p coastlines
+          # Lädt die aktuellen globalen Küstenlinien von osmdata.openstreetmap.de
+          wget "https://osmdata.openstreetmap.de/download/coastlines-split-3857.zip" -O coast.zip
+          unzip -j coast.zip -d coastlines
+
+      - name: Generate Tiles directly from Shapefile via Tippecanoe
+        run: |
+          mkdir -p final_tiles/coastline
+          
+          # Erklärung der Parameter:
+          # -e final_tiles/coastline : Entpackt die Kacheln direkt als Ordnerstruktur (kein .mbtiles Umweg)
+          # -l coastline            : Benennt den Vektor-Layer innerhalb der Kacheln "coastline"
+          # -z12                    : Generiert Kacheln von Zoom 0 bis maximal Zoom 12
+          # --force                 : Überschreibt den Zielordner, falls er existiert
+          # coastlines/             : Tippecanoe liest den gesamten Ordner und erkennt die .shp Datei automatisch
+          tippecanoe -e final_tiles -l coastline -z12 --force coastlines/
+
+      - name: Deploy Coastline Tiles to GitHub Pages Branch
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: final_tiles
+          target-folder: tiles/coastline
+          branch: gh-pages
+          clean: true # Löscht alte Coastline-Kacheln im Zielordner, berührt deinen 'journey'-Ordner aber NICHT

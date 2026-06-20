@@ -1,4 +1,4 @@
-name: Build Custom Map Tiles
+name: Build Journey Tiles
 
 on:
   schedule:
@@ -74,7 +74,7 @@ jobs:
         if: ${{ hashFiles(env.filename) != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: mbtiles-${{ env.filename }}
+          name: mbtiles-journey-${{ env.filename }}
           path: ${{ env.filename }}
           retention-days: 1
 
@@ -95,7 +95,7 @@ jobs:
       - name: Download All Generated MBTiles
         uses: actions/download-artifact@v4
         with:
-          pattern: mbtiles-*
+          pattern: mbtiles-journey-*
           path: download_mbtiles
           merge-multiple: true
 
@@ -119,6 +119,6 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: final_tiles_extracted
-          target-folder: tiles
+          target-folder: tiles/journey
           branch: gh-pages
           clean: ${{ github.event_name == 'schedule' || github.event.inputs.region == 'ALL_REGIONS' }}
