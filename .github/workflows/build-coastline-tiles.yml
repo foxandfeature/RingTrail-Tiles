@@ -2,8 +2,8 @@ name: Build Global Coastline Tiles
 
 on:
   schedule:
-    - cron: '0 0 2 * *' # Läuft vollautomatisch am 2. jedes Monats
-  workflow_dispatch: # Ermöglicht den manuellen Start über den "Run workflow" Button
+    - cron: '0 0 2 * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -19,7 +19,6 @@ jobs:
       - name: Install GDAL & Tippecanoe
         run: |
           sudo apt-get update
-          # gdal-bin liefert ogr2ogr für die Konvertierung
           sudo apt-get install -y gdal-bin build-essential libsqlite3-dev zlib1g-dev
           git clone https://github.com/felt/tippecanoe.git
           cd tippecanoe
@@ -29,35 +28,30 @@ jobs:
       - name: Download and Unzip Coastlines Shapefile (WGS84 Version)
         run: |
           mkdir -p coastlines
-          # WICHTIG: 4326 (WGS84) wird benötigt, da Tippecanoe Grad-Koordinaten erwartet
           wget "https://osmdata.openstreetmap.de/download/coastlines-split-4326.zip" -O coast.zip
           unzip -j coast.zip -d coastlines
 
       - name: Convert Shapefile to GeoJSONSeq via ogr2ogr
         run: |
-          # Wandelt die Shapefile in ein zeilenbasiertes GeoJSON um (extrem speichereffizient)
           ogr2ogr -f GeoJSONSeq coastlines.geojsonl coastlines/lines.shp
 
       - name: Generate Tiles via Tippecanoe
         run: |
           mkdir -p final_tiles
           
-          # -e final_tiles : Schreibt direkt die entpackte Ordnerstruktur (z/x/y.pbf)
-          # -l coastline            : Benennt den Vektor-Layer "coastline"
-          # -z12                    : Generiert Kacheln bis Zoomstufe 12
-          # --force                 : Überschreibt alte Kacheln im Workspace vor dem Export
           tippecanoe -e final_tiles \
                      -l coastline \
                      -z12 \
                      --force \
+                     --no-tile-compression \
                      coastlines.geojsonl
 
       - name: Deploy Coastline Tiles to GitHub Pages Branch
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: final_tiles
-          target-folder: tiles/coastline  # Lädt die Daten isoliert in 'tiles/coastline' hoch
+          target-folder: tiles/coastline
           branch: gh-pages
           clean: true
           commit-message: "Deploy Coastline Tiles 🚀"
-          single-commit: false # Erzeugt eine saubere Historie, statt den Branch zu plätten
+          single-commit: false
