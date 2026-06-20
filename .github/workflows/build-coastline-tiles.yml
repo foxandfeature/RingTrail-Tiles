@@ -16,39 +16,46 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Tippecanoe Dependecies & Build Tippecanoe
+      - name: Install GDAL & Tippecanoe
         run: |
           sudo apt-get update
-          # Installiert die für Tippecanoe benötigten Compiler und Bibliotheken
-          sudo apt-get install -y build-essential libsqlite3-dev zlib1g-dev
+          # gdal-bin liefert ogr2ogr für die Konvertierung
+          sudo apt-get install -y gdal-bin build-essential libsqlite3-dev zlib1g-dev
           git clone https://github.com/felt/tippecanoe.git
           cd tippecanoe
           make -j$(nproc)
           sudo make install
 
-      - name: Download and Unzip Coastlines Shapefile
+      - name: Download and Unzip Coastlines Shapefile (WGS84 Version)
         run: |
           mkdir -p coastlines
-          # Lädt die aktuellen globalen Küstenlinien von osmdata.openstreetmap.de
-          wget "https://osmdata.openstreetmap.de/download/coastlines-split-3857.zip" -O coast.zip
+          # WICHTIG: 4326 (WGS84) wird benötigt, da Tippecanoe Grad-Koordinaten erwartet
+          wget "https://osmdata.openstreetmap.de/download/coastlines-split-4326.zip" -O coast.zip
           unzip -j coast.zip -d coastlines
 
-      - name: Generate Tiles directly from Shapefile via Tippecanoe
+      - name: Convert Shapefile to GeoJSONSeq via ogr2ogr
         run: |
-          mkdir -p final_tiles/coastline
+          # Wandelt die Shapefile in ein zeilenbasiertes GeoJSON um (extrem speichereffizient)
+          ogr2ogr -f GeoJSONSeq coastlines.geojsonl coastlines/lines.shp
+
+      - name: Generate Tiles via Tippecanoe
+        run: |
+          mkdir -p final_tiles
           
-          # Erklärung der Parameter:
-          # -e final_tiles/coastline : Entpackt die Kacheln direkt als Ordnerstruktur (kein .mbtiles Umweg)
-          # -l coastline            : Benennt den Vektor-Layer innerhalb der Kacheln "coastline"
-          # -z12                    : Generiert Kacheln von Zoom 0 bis maximal Zoom 12
-          # --force                 : Überschreibt den Zielordner, falls er existiert
-          # coastlines/             : Tippecanoe liest den gesamten Ordner und erkennt die .shp Datei automatisch
-          tippecanoe -e final_tiles -l coastline -z12 --force coastlines/
+          # -e final_tiles : Schreibt direkt die entpackte Ordnerstruktur (z/x/y.pbf)
+          # -l coastline            : Benennt den Vektor-Layer "coastline"
+          # -z12                    : Generiert Kacheln bis Zoomstufe 12
+          # --force                 : Überschreibt alte Kacheln im Workspace vor dem Export
+          tippecanoe -e final_tiles \
+                     -l coastline \
+                     -z12 \
+                     --force \
+                     coastlines.geojsonl
 
       - name: Deploy Coastline Tiles to GitHub Pages Branch
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: final_tiles
-          target-folder: tiles/coastline
+          target-folder: tiles/coastline  # Lädt die Daten isoliert in 'tiles/coastline' hoch
           branch: gh-pages
-          clean: true # Löscht alte Coastline-Kacheln im Zielordner, berührt deinen 'journey'-Ordner aber NICHT
+          clean: true # Löscht alte Coastline-Kacheln, berührt deinen 'journey'-Ordner aber NICHT
