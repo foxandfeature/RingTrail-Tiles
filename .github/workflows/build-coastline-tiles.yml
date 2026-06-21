@@ -1,4 +1,4 @@
-name: Build Global Coastline Tiles
+name: Build Global Coastline and Land Tiles
 
 on:
   schedule:
@@ -25,33 +25,43 @@ jobs:
           make -j$(nproc)
           sudo make install
 
-      - name: Download and Unzip Coastlines Shapefile (WGS84 Version)
+      - name: Download and Unzip Shapefiles (WGS84 Versions)
         run: |
-          mkdir -p coastlines
+          mkdir -p data/coastlines data/land
+          
+          # 1. Coastlines herunterladen & entpacken
           wget "https://osmdata.openstreetmap.de/download/coastlines-split-4326.zip" -O coast.zip
-          unzip -j coast.zip -d coastlines
+          unzip -j coast.zip -d data/coastlines
+          
+          # 2. Land Polygons herunterladen & entpacken
+          wget "https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip" -O land.zip
+          unzip -j land.zip -d data/land
 
-      - name: Convert Shapefile to GeoJSONSeq via ogr2ogr
+      - name: Convert Shapefiles to GeoJSONSeq via ogr2ogr
         run: |
-          ogr2ogr -f GeoJSONSeq coastlines.geojsonl coastlines/lines.shp
+          # Mit *.shp fangen wir den Dateinamen ab, da sich Ordnerstrukturen im Zip ändern können
+          ogr2ogr -f GeoJSONSeq coastline.geojsonl data/coastlines/*.shp
+          ogr2ogr -f GeoJSONSeq land.geojsonl data/land/*.shp
 
-      - name: Generate Tiles via Tippecanoe
+      - name: Generate Tiles via Tippecanoe (One Source, Two Layers)
         run: |
           mkdir -p final_tiles
           
+          # Tippecanoe liest beide Dateien. 
+          # Der Layername entspricht dem Dateinamen (also "coastline" und "land").
           tippecanoe -e final_tiles \
-                     -l coastline \
-                     -z12 \
+                     -z14 \
                      --force \
                      --no-tile-compression \
-                     coastlines.geojsonl
+                     coastline.geojsonl \
+                     land.geojsonl
 
-      - name: Deploy Coastline Tiles to GitHub Pages Branch
+      - name: Deploy Tiles to GitHub Pages Branch
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: final_tiles
-          target-folder: tiles/coastline
+          target-folder: tiles/basemap
           branch: gh-pages
           clean: true
-          commit-message: "Deploy Coastline Tiles 🚀"
+          commit-message: "Deploy Coastline & Land Tiles 🚀"
           single-commit: false

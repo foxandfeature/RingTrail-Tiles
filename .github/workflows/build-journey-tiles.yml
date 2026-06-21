@@ -113,6 +113,7 @@ jobs:
           tile-join \
             --no-tile-size-limit \
             -e final_tiles_extracted \
+            --no-tile-compression \
             download_mbtiles/*.mbtiles
 
       - name: Deploy and Commit Consolidated Tiles to GitHub Pages Branch
