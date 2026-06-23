@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # - name: Free Disk Space (Ubuntu)
-      #   uses: jlumbroso/free-disk-space@main
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
 
       - name: Checkout Repository
         uses: actions/checkout@v4
