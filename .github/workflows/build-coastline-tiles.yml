@@ -1,4 +1,4 @@
-name: Build Global Coastline and Land Tiles
+name: Build Global Coastline Tiles
 
 on:
   schedule:
@@ -16,7 +16,6 @@ jobs:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
-          # Hier optimieren wir den Bereinigungsprozess maximal
           tool-cache: true
 
       - name: Checkout Repository
@@ -27,76 +26,28 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gdal-bin build-essential libsqlite3-dev zlib1g-dev
           git clone https://github.com/felt/tippecanoe.git
-          cd tippecanoe
-          make -j$(nproc)
-          sudo make install
+          cd tippecanoe && make -j$(nproc) && sudo make install
 
-      - name: Process Coastlines (Download, Convert, Clean)
+      - name: Download and Process Coastlines
         run: |
           mkdir -p data/coastlines
-          
-          echo "Downloading Coastlines..."
           wget "https://osmdata.openstreetmap.de/download/coastlines-split-4326.zip" -O coast.zip
-          
-          echo "Unzipping..."
-          unzip -j coast.zip -d data/coastlines
-          rm coast.zip # ZIP sofort löschen
-          
-          echo "Converting to GeoJSONSeq..."
+          unzip -j coast.zip -d data/coastlines && rm coast.zip
           ogr2ogr -f GeoJSONSeq coastline.geojsonl data/coastlines/*.shp
-          
-          echo "Cleaning up Coastline Shapefiles..."
-          rm -rf data/coastlines # Shapefiles sofort löschen
+          rm -rf data/coastlines
 
-      - name: Process Land Polygons (Download, Convert, Clean)
+      - name: Generate and Extract Tiles
         run: |
-          mkdir -p data/land
-          
-          echo "Downloading Land Polygons..."
-          wget "https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip" -O land.zip
-          
-          echo "Unzipping..."
-          unzip -j land.zip -d data/land
-          rm land.zip # ZIP sofort löschen
-          
-          echo "Converting to GeoJSONSeq..."
-          ogr2ogr -f GeoJSONSeq land.geojsonl data/land/*.shp
-          
-          echo "Cleaning up Land Shapefiles..."
-          rm -rf data/land # Shapefiles sofort löschen
-
-      - name: Generate Tiles via Tippecanoe (.mbtiles buffer)
-        run: |
-          # 1. In eine einzige kompakte .mbtiles-Datei schreiben.
-          # Das verhindert, dass das Dateisystem während der Erstellung durch Millionen Mini-Dateien blockiert wird.
-          tippecanoe -o tiles.mbtiles \
-                     -z14 \
-                     --force \
-                     --no-tile-compression \
-                     --drop-densest-as-needed \
-                     coastline.geojsonl \
-                     land.geojsonl
-
-          echo "Deleting huge GeoJSONL files to free up space..."
-          # 2. Die gigantischen Quelldateien löschen, BEVOR wir entpacken
-          rm coastline.geojsonl
-          rm land.geojsonl
-
-          echo "Extracting .mbtiles into folder structure..."
-          # 3. Mit tile-join (wurde mit tippecanoe gebaut) die Kacheln in den Zielordner entpacken
+          tippecanoe -o tiles.mbtiles -z14 --force --no-tile-compression --drop-densest-as-needed coastline.geojsonl
           mkdir -p final_tiles
           tile-join -e final_tiles tiles.mbtiles
+          rm tiles.mbtiles coastline.geojsonl
 
-          echo "Deleting temporary .mbtiles file..."
-          # 4. Die temporäre MBTiles-Datei löschen
-          rm tiles.mbtiles
-
-      - name: Deploy Tiles to GitHub Pages Branch
+      - name: Deploy Tiles to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: final_tiles
           target-folder: tiles/basemap
           branch: gh-pages
           clean: true
-          commit-message: "Deploy Coastline & Land Tiles 🚀"
-          single-commit: false
+          commit-message: "Deploy Coastline Tiles 🚀"
