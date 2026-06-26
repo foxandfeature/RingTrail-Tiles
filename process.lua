@@ -2,12 +2,14 @@
 node_keys = { 
     "building", "bridge", "foot", "highway", "tourism", "amenity", "shelter_type",
     "archaeological_site", "historic", "cemetery", "man_made", "tomb", "landuse", "memorial",
-    "ruins", "tower:type" 
+    "ruins", "tower:type",
+    "ford"
 }
 way_keys =  { 
     "building", "bridge", "foot", "highway", "tourism", "amenity", "shelter_type",
     "archaeological_site", "historic", "cemetery", "man_made", "tomb", "landuse", "memorial",
-    "ruins", "tower:type" 
+    "ruins", "tower:type",
+    "ford"
 }
 
 local farm_buildings = { farm = true, barn = true, stable = true, sty = true, cowshed = true }
@@ -15,12 +17,15 @@ local farm_buildings = { farm = true, barn = true, stable = true, sty = true, co
 local ferry_feet = { yes = true, designated = true, use_sidepath = true }
 local ferry_highways = { foot = true, track = true, path = true, pedestrian = true }
 
-local huts = { wilderness_hut = true, alpine_hut = true, cabin = true, hut = true }
+local huts = { wilderness_hut = true, cabin = true, hut = true }
 
 local arch_sites = { tumulus = true, megalith = true, necropolis = true, tomb = true, earthwork = true, grave_field = true }
 local historic_tombs = { tomb = true, cemetery = true }
 local man_made_tombs = { grave = true, tomb = true }
 local memorials = { war_memorial = true, cross = true, cenotaph = true }
+
+local bree_amenities = { pub = true, bar = true, biergarten = true, restaurant = true }
+local bree_tourism = { hotel = true, hostel = true, motel = true, alpine_hut = true }
 
 function init_function() end
 function exit_function() end
@@ -48,7 +53,8 @@ local function determineStationOrder()
     end
 
     -- 4. Barrow-downs
-    if arch_sites[Find("archaeological_site")] then return "4" end
+    local arch_site = Find("archaeological_site")
+    if arch_sites[arch_site] then return "4" end
     if historic_tombs[Find("historic")] then return "4" end
     if man_made_tombs[Find("man_made")] then return "4" end
     if memorials[Find("memorial")] then return "4" end
@@ -61,12 +67,30 @@ local function determineStationOrder()
     local tomb = Find("tomb")
     if tomb ~= "" then return "4" end
 
-    -- 5. Amon Sûl
+
+    -- 5. Bree (The Prancing Pony Inn)
+    if bree_amenities[Find("amenity")] or bree_tourism[Find("tourism")] then
+        return "5"
+    end
+
+    -- 6. Amon Sûl
+    if arch_site == "fortification" then return "6" end
+    
     local ruins = Find("ruins")
-    if ruins == "castle" or ruins == "tower" then return "5" end
-    if Find("historic") == "castle" then return "5" end
-    if Find("tourism") == "viewpoint" then return "5" end
-    if Find("tower:type") == "observation" then return "5" end
+    if ruins == "castle" or ruins == "tower" then return "6" end
+    if Find("historic") == "castle" then return "6" end
+    if Find("tourism") == "viewpoint" then return "6" end
+    if Find("tower:type") == "observation" then return "6" end
+
+
+    -- 7. Ford of Bruinen
+    local ford = Find("ford")
+    
+    if ford == "yes" or ford == "stepping_stones" then 
+        return "7" 
+    end
+
+ 
 
     return nil
 end
