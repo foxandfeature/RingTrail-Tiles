@@ -47,7 +47,7 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: final_tiles
-          target-folder: tiles/basemap
+          target-folder: tiles/coastline
           branch: gh-pages
           clean: true
           commit-message: "Deploy Coastline Tiles 🚀"
