@@ -68,7 +68,7 @@ jobs:
             --output "/data/${{ env.filename }}" \
             --config /data/config.json \
             --process /data/process.lua \
-            --store /tmp/tilemaker_store
+            --store /data/tilemaker_store
 
       - name: Upload Temporary Regional Artifact
         if: ${{ hashFiles(env.filename) != '' }}
