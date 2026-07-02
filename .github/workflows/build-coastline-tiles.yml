@@ -13,11 +13,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: true
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -26,24 +21,32 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gdal-bin build-essential libsqlite3-dev zlib1g-dev
           git clone https://github.com/felt/tippecanoe.git
-          cd tippecanoe && make -j$(nproc) && sudo make install
+          cd tippecanoe
+          make -j$(nproc)
+          sudo make install
 
-      - name: Download and Process Coastlines
+      - name: Download and Unzip Coastlines Shapefile (WGS84 Version)
         run: |
-          mkdir -p data/coastlines
+          mkdir -p coastlines
           wget "https://osmdata.openstreetmap.de/download/coastlines-split-4326.zip" -O coast.zip
-          unzip -j coast.zip -d data/coastlines && rm coast.zip
-          ogr2ogr -f GeoJSONSeq coastline.geojsonl data/coastlines/*.shp
-          rm -rf data/coastlines
+          unzip -j coast.zip -d coastlines
 
-      - name: Generate and Extract Tiles
+      - name: Convert Shapefile to GeoJSONSeq via ogr2ogr
         run: |
-          tippecanoe -o tiles.mbtiles -z14 --force --no-tile-compression --drop-densest-as-needed coastline.geojsonl
-          mkdir -p final_tiles
-          tile-join -e final_tiles tiles.mbtiles
-          rm tiles.mbtiles coastline.geojsonl
+          ogr2ogr -f GeoJSONSeq coastlines.geojsonl coastlines/lines.shp
 
-      - name: Deploy Tiles to GitHub Pages
+      - name: Generate Tiles via Tippecanoe
+        run: |
+          mkdir -p final_tiles
+          
+          tippecanoe -e final_tiles \
+                     -l coastline \
+                     -z14 \
+                     --force \
+                     --no-tile-compression \
+                     coastlines.geojsonl
+
+      - name: Deploy Coastline Tiles to GitHub Pages Branch
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: final_tiles
@@ -51,3 +54,4 @@ jobs:
           branch: gh-pages
           clean: true
           commit-message: "Deploy Coastline Tiles 🚀"
+          single-commit: false
