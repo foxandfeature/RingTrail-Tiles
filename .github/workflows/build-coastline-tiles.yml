@@ -2,7 +2,7 @@ name: Build Global Coastline Tiles
 
 on:
   schedule:
-    - cron: '0 0 2 * *'
+    - cron: "0 0 2 * *"
   workflow_dispatch:
 
 permissions:
@@ -38,12 +38,12 @@ jobs:
       - name: Generate Tiles via Tippecanoe
         run: |
           mkdir -p final_tiles
-          
+
           tippecanoe -e final_tiles \
                      -l coastline \
                      -z14 \
-                     --force \
                      --no-tile-compression \
+                     -S 10ƒ
                      coastlines.geojsonl
 
       - name: Deploy Coastline Tiles to GitHub Pages Branch
