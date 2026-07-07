@@ -43,7 +43,7 @@ jobs:
                      -l coastline \
                      -z14 \
                      --no-tile-compression \
-                     -S 10ƒ
+                     -S 10
                      coastlines.geojsonl
 
       - name: Deploy Coastline Tiles to GitHub Pages Branch
