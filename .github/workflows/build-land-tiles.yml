@@ -1,4 +1,4 @@
-name: Generate and Deploy Land Layer
+name: Build Land Tiles
 
 on:
   schedule:
@@ -13,7 +13,6 @@ on:
         options:
           - 'ALL_REGIONS'
           - 'europe/germany/niedersachsen'
-          - 'europe/germany/bayern'
 
 permissions:
   contents: write
@@ -85,8 +84,8 @@ jobs:
           
           # 4. Punch out water surfaces from the bounding box (WKT polygon)
           ogr2ogr -f GeoJSON land_layer.geojson gis_osm_water_a_free_1.shp \
-            -dialect sqlite \
-            -sql "SELECT ST_Difference(ST_GeomFromText('$WKT'), ST_Union(geometry)) AS geometry FROM gis_osm_water_a_free_1"
+          -dialect sqlite \
+          -sql "SELECT ST_Difference(ST_GeomFromText('$WKT'), ST_Union(ST_MakeValid(geometry))) AS geometry FROM gis_osm_water_a_free_1"
 
       - name: Format Destination Filename
         run: |
