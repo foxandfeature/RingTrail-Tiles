@@ -1,0 +1,156 @@
+name: Generate and Deploy Land Layer
+
+on:
+  schedule:
+    - cron: '0 2 1 * *' # Runs on the 1st of every month at 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'Manual selection: Specific region or ALL_REGIONS'
+        required: true
+        default: 'europe/germany/niedersachsen'
+        type: choice
+        options:
+          - 'ALL_REGIONS'
+          - 'europe/germany/niedersachsen'
+          - 'europe/germany/bayern'
+
+permissions:
+  contents: write
+
+jobs:
+  # Job 1: Prepare matrix regions
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      regions: ${{ steps.regions.outputs.regions }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Load Region List
+        id: regions
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event.inputs.region }}" = "ALL_REGIONS" ]; then
+            echo "regions=$(jq -c . .github/regions.json)" >> "$GITHUB_OUTPUT"
+          else
+            echo "regions=[\"${{ github.event.inputs.region }}\"]" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Job 2: Parallel processing of regions (Inverse Masking -> MBTiles)
+  build-tiles:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        region: ${{ fromJSON(needs.prepare.outputs.regions) }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install GDAL & Build Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin sqlite3 build-essential libsqlite3-dev zlib1g-dev
+
+      - name: Install Tippecanoe (Felt Version)
+        run: |
+          git clone https://github.com/felt/tippecanoe.git
+          cd tippecanoe
+          make -j$(nproc)
+          sudo make install
+
+      - name: Download and Unzip Geofabrik Shapefile
+        run: |
+          wget "https://download.geofabrik.de/${{ matrix.region }}-latest-free.shp.zip" -O region.shp.zip
+          unzip region.shp.zip "gis_osm_water_a_free_1.*"
+
+      - name: Calculate Dynamic Bounding Box & Inverse Masking
+        run: |
+          # 1. Automatically extract the extent of the shapefile region
+          INFO=$(ogrinfo -so gis_osm_water_a_free_1.shp gis_osm_water_a_free_1)
+          EXTENT_LINE=$(echo "$INFO" | grep "Extent:")
+          
+          # 2. Cleanly parse coordinates
+          MINX=$(echo "$EXTENT_LINE" | awk '{print $2}' | tr -d '(,')
+          MINY=$(echo "$EXTENT_LINE" | awk '{print $3}' | tr -d ')')
+          MAXX=$(echo "$EXTENT_LINE" | awk '{print $5}' | tr -d '(,')
+          MAXY=$(echo "$EXTENT_LINE" | awk '{print $6}' | tr -d ')')
+          
+          # 3. Generate WKT polygon
+          WKT="POLYGON(($MINX $MINY, $MAXX $MINY, $MAXX $MAXY, $MINX $MAXY, $MINX $MINY))"
+          
+          # 4. Punch out water surfaces from the bounding box (WKT polygon)
+          ogr2ogr -f GeoJSON land_layer.geojson gis_osm_water_a_free_1.shp \
+            -dialect sqlite \
+            -sql "SELECT ST_Difference(ST_GeomFromText('$WKT'), ST_Union(geometry)) AS geometry FROM gis_osm_water_a_free_1"
+
+      - name: Format Destination Filename
+        run: |
+          CLEAN_NAME=$(echo "${{ matrix.region }}" | tr '/' '-')
+          echo "filename=$CLEAN_NAME.mbtiles" >> "$GITHUB_ENV"
+
+      - name: Generate Regional MBTiles (Tippecanoe)
+        run: |
+          tippecanoe -o "${{ env.filename }}" -l land -z 14 -Z 0 --drop-densest-as-needed land_layer.geojson
+
+      - name: Upload Temporary Regional Artifact
+        if: ${{ hashFiles(env.filename) != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mbtiles-land-${{ env.filename }}
+          path: ${{ env.filename }}
+          retention-days: 1
+
+  # Job 3: Merge, extract MBTiles and deploy to GitHub Pages
+  deploy-tiles:
+    if: ${{ always() }}
+    needs: build-tiles
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Workspace
+        run: |
+          mkdir -p download_mbtiles
+          mkdir -p final_tiles_extracted
+
+      - name: Download All Generated MBTiles
+        uses: actions/download-artifact@v4
+        with:
+          pattern: mbtiles-land-*
+          path: download_mbtiles
+          merge-multiple: true
+
+      - name: Install Tippecanoe (for tile-join)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libsqlite3-dev zlib1g-dev
+          git clone https://github.com/felt/tippecanoe.git
+          cd tippecanoe
+          make -j$(nproc)
+          sudo make install
+
+      - name: Merge and Extract Tiles
+        # tile-join merges the regional tiles seamlessly into a single structure
+        run: |
+          tile-join \
+            --no-tile-size-limit \
+            -e final_tiles_extracted \
+            --no-tile-compression \
+            download_mbtiles/*.mbtiles
+
+      - name: Deploy to GitHub Pages Branch
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: final_tiles_extracted
+          target-folder: tiles/land
+          branch: gh-pages
+          clean: ${{ github.event_name == 'schedule' || github.event.inputs.region == 'ALL_REGIONS' }}
+          commit-message: "Deploy Consolidated Land Tiles 🚀"
+          single-commit: false
