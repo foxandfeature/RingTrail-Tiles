@@ -1,0 +1,21 @@
+{
+  "tilejson": "3.0.0",
+  "name": "Ringtrail Journey Tiles",
+  "description": "Vector tiles for an adventure app mapping Lord of the Rings-inspired trail stations in nature.",
+  "version": "1.1.0",
+  "attribution": "<a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">&copy; OpenStreetMap contributors</a>",
+  "scheme": "xyz",
+  "tiles": [
+    "https://foxandfeature.github.io/ringtrail-tiles/tiles/journey/{z}/{x}/{y}"
+  ],
+  "minzoom": 10,
+  "maxzoom": 10,
+  "vector_layers": [
+    {
+      "id": "journey",
+      "description": "Custom trail and station layers defined in process-journey.lua",
+      "minzoom": 10,
+      "maxzoom": 10
+    }
+  ]
+}
