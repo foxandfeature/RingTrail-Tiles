@@ -6,7 +6,7 @@
   "attribution": "<a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">&copy; OpenStreetMap contributors</a>",
   "scheme": "xyz",
   "tiles": [
-    "https://foxandfeature.github.io/RingTrail-Tiles/tiles/journey/{z}/{x}/{y}"
+    "https://foxandfeature.github.io/RingTrail-Tiles/tiles/journey/{z}/{x}/{y}.pbf"
   ],
   "minzoom": 10,
   "maxzoom": 10,
