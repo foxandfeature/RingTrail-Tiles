@@ -116,6 +116,11 @@ jobs:
             --no-tile-compression \
             download_mbtiles/*.mbtiles
 
+      - name: Copy TileJSON to Extracted Folder
+        run: |
+          # This places tilejson.json right next to your Z/X/Y tile folders
+          cp tilejson.json final_tiles_extracted/tiles/journey/tilejson.json
+
       - name: Deploy and Commit Consolidated Tiles to GitHub Pages Branch
         uses: JamesIves/github-pages-deploy-action@v4
         with:
@@ -124,4 +129,4 @@ jobs:
           branch: gh-pages
           clean: ${{ github.event_name == 'schedule' || github.event.inputs.region == 'ALL_REGIONS' }}
           commit-message: "Deploy Journey Tiles 🚀"
-          single-commit: false
+          single-commit: true
